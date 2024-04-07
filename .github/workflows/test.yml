@@ -29,7 +29,7 @@ jobs:
               run: pnpm prettier && pnpm eslint
 
             - name: Build testing for core
-              run: pnpm build --filter=@blogger/logger --filter=@blogger/build_system
+              run: pnpm build
 
             - name: Unit testing
               run: pnpm test

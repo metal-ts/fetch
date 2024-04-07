@@ -73,7 +73,7 @@ importers:
         version: 1.4.0
 
   packages/fetch:
-    dependencies:
+    devDependencies:
       '@metal-box/type':
         specifier: ^0.2.0
         version: 0.2.0
@@ -923,7 +923,7 @@ packages:
 
   /@metal-box/type@0.2.0:
     resolution: {integrity: sha512-JPmJ85QaE1H0sSAAZXSP69AEabRfDTE+iOYTtYz0bvJX6SHx0RV7XlYRS526M5qc2uFysTHYmKYMm/6uyNfhzw==}
-    dev: false
+    dev: true
 
   /@mswjs/cookies@1.1.0:
     resolution: {integrity: sha512-0ZcCVQxifZmhwNBoQIrystCb+2sWBY2Zw8lpfJBPCHGCA/HWqehITeCRVIv4VMy8MPlaHo2w2pTHFV2pFfqKPw==}
