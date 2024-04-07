@@ -1,0 +1,35 @@
+name: Test code
+
+on:
+    push:
+        branches: ['**']
+    pull_request:
+        branches: ['**']
+
+jobs:
+    total-test:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v3
+              name: Checkout
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v3
+              with:
+                  node-version: 20
+
+            - uses: pnpm/action-setup@v2
+              name: Install pnpm
+              id: pnpm-install
+              with:
+                  version: 8
+                  run_install: true
+
+            - name: Format checking
+              run: pnpm prettier && pnpm eslint
+
+            - name: Build testing for core
+              run: pnpm build --filter=@blogger/logger --filter=@blogger/build_system
+
+            - name: Unit testing
+              run: pnpm test
