@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 import { describe, expect, it } from 'vitest'
 import { Middleware } from '../utils/middleware'
 import { label } from './utils/test.label'
