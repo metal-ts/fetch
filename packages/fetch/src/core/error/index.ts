@@ -1,4 +1,7 @@
-import { FetchPathParamsShape, FetchSearchParamsShape } from '../fetcher'
+import type {
+    FetchPathParamsShape,
+    FetchSearchParamsShape,
+} from '../fetcher/core.type'
 
 class FetchError extends Error {
     public static formatMessage(
