@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 import { describe, expect, it } from 'vitest'
 import { Procedure, ProcedureSet } from '../utils/procedure'
 import { label } from './utils/test.label'
