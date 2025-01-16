@@ -1,25 +1,25 @@
 {
-  "name": "@metal-box/fetch",
-  "version": "0.1.0",
-  "description": "REST in peace with typescript",
-  "author": "danpacho",
-  "license": "MIT",
-  "keywords": [],
-  "sideEffects": false,
-  "publishConfig": {
-    "access": "public"
-  },
-  "files": [
-    "dist"
-  ],
-  "main": "./dist/index.js",
-  "module": "./dist/index.mjs",
-  "types": "./dist/index.d.ts",
-  "scripts": {
-    "build": "tsup src/index.ts --format=cjs,esm --dts",
-    "build:fast": "tsup src/index.ts --format=cjs,esm"
-  },
-  "devDependencies": {
-    "@metal-box/type": "^0.2.0"
-  }
+    "name": "@metal-box/fetch",
+    "version": "0.1.0",
+    "description": "Declarative fetcher using typescript",
+    "author": "danpacho",
+    "license": "MIT",
+    "keywords": [],
+    "sideEffects": false,
+    "publishConfig": {
+        "access": "public"
+    },
+    "files": [
+        "dist"
+    ],
+    "main": "./dist/index.js",
+    "module": "./dist/index.mjs",
+    "types": "./dist/index.d.ts",
+    "scripts": {
+        "build": "tsup src/index.ts --format=cjs,esm --dts",
+        "build:fast": "tsup src/index.ts --format=cjs,esm"
+    },
+    "devDependencies": {
+        "@metal-box/type": "^0.2.0"
+    }
 }
