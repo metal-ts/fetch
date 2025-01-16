@@ -1,11 +1,22 @@
+'use strict'
+import tsParser from '@typescript-eslint/parser'
+
 module.exports = {
-    env: {
-        browser: true,
-        'shared-node-browser': true,
-        node: true,
-        es6: true,
+    // env: {
+    //     browser: true,
+    //     'shared-node-browser': true,
+    //     node: true,
+    //     es6: true,
+    // },
+    languageOptions: {
+        globals: {
+            browser: true,
+            'shared-node-browser': true,
+            node: true,
+            es6: true,
+        },
+        parser: tsParser,
     },
-    parser: '@typescript-eslint/parser',
     extends: [
         'eslint:recommended',
         'prettier',
