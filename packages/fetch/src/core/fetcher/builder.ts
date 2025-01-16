@@ -1,249 +1,490 @@
-import type { IncludeString } from '../../utils/types'
+import { Procedure, ProcedureSet } from '../../utils/procedure'
+import type { ConcreteBoolean, JSON } from '../../utils/types'
+import { FetchErrorCode, FetchResponseError } from '../error'
+import {
+    DefaultFetchModeOptions,
+    FetchMethod,
+    FetchMethodString,
+    FetchModeOptionsShape,
+    FetchOption,
+    FetchPathParamsShape,
+    FetchQueryOptions,
+    FetchSearchParamsShape,
+    FetchUnitRequestHandler,
+} from './core.type'
+import { FetchOptionStore } from './fetch.option'
+import { FetchUnit } from './unit'
 
-export type FetchUrl = Parameters<typeof fetch>[0]
-export type FetchOption = Required<RequestInit>
-export type FetchMethod =
-    | 'GET'
-    | 'POST'
-    | 'PUT'
-    | 'DELETE'
-    | 'PATCH'
-    | 'CONNECT'
-    | 'HEAD'
-    | 'OPTIONS'
-    | 'TRACE'
+export class FetchBuilder<
+    $Method extends FetchMethodString,
+    $PathParams extends FetchPathParamsShape = unknown,
+    $SearchParams extends FetchSearchParamsShape = unknown,
+    $Body = unknown,
+    $Response = unknown,
+    $ModeOptions extends FetchModeOptionsShape = DefaultFetchModeOptions,
+    const $BaseUrl extends string = '',
+> {
+    public copy(
+        newStore: FetchOptionStore
+    ): FetchBuilder<
+        $Method,
+        $PathParams,
+        $SearchParams,
+        $Body,
+        $Response,
+        $ModeOptions,
+        $BaseUrl
+    > {
+        const copy = new FetchBuilder<
+            $Method,
+            $PathParams,
+            $SearchParams,
+            $Body,
+            $Response,
+            $ModeOptions,
+            $BaseUrl
+        >()
+        copy._store = newStore
+        copy.def_fetch_err_handler(this.fetchErrorProcedure.executor)
+        copy.def_unknown_err_handler(this.unknownErrorProcedure.executor)
+        copy.def_final_handler(this.finallyProcedure.executor)
+        copy.def_response(this.responseHandler)
+        copy.def_request_handler(this.requestHandler)
+        copy.def_searchparams(this.searchParamsValidator)
+        copy.def_query_mode(this.isSafeMode ? 'not_throw' : 'throw')
+        this.isJsonMode && copy.def_json()
 
-export type FetchMethodString = FetchMethod | IncludeString
+        return copy
+    }
 
-type FetchHeaderKey =
-    | 'Accept'
-    | 'Accept-CH'
-    | 'Accept-CH-Lifetime'
-    | 'Accept-Charset'
-    | 'Accept-Encoding'
-    | 'Accept-Language'
-    | 'Accept-Patch'
-    | 'Accept-Post'
-    | 'Accept-Ranges'
-    | 'Access-Control-Allow-Credentials'
-    | 'Access-Control-Allow-Headers'
-    | 'Access-Control-Allow-Methods'
-    | 'Access-Control-Allow-Origin'
-    | 'Access-Control-Expose-Headers'
-    | 'Access-Control-Max-Age'
-    | 'Access-Control-Request-Headers'
-    | 'Access-Control-Request-Method'
-    | 'Age'
-    | 'Allow'
-    | 'Alt-Svc'
-    | 'Alt-Used'
-    | 'Authorization'
-    | 'Cache-Control'
-    | 'Clear-Site-Data'
-    | 'Connection'
-    | 'Content-DPR'
-    | 'Content-Disposition'
-    | 'Content-Encoding'
-    | 'Content-Language'
-    | 'Content-Length'
-    | 'Content-Location'
-    | 'Content-Range'
-    | 'Content-Security-Policy'
-    | 'Content-Security-Policy-Report-Only'
-    | 'Content-Type'
-    | 'Cookie'
-    | 'Critical-CH'
-    | 'Cross-Origin-Embedder-Policy'
-    | 'Cross-Origin-Opener-Policy'
-    | 'Cross-Origin-Resource-Policy'
-    | 'DNT'
-    | 'DPR'
-    | 'Date'
-    | 'Device-Memory'
-    | 'Digest'
-    | 'Downlink'
-    | 'ECT'
-    | 'ETag'
-    | 'Early-Data'
-    | 'Expect'
-    | 'Expect-CT'
-    | 'Expires'
-    | 'Forwarded'
-    | 'From'
-    | 'Host'
-    | 'If-Match'
-    | 'If-Modified-Since'
-    | 'If-None-Match'
-    | 'If-Range'
-    | 'If-Unmodified-Since'
-    | 'Keep-Alive'
-    | 'Large-Allocation'
-    | 'Last-Modified'
-    | 'Link'
-    | 'Location'
-    | 'Max-Forwards'
-    | 'NEL'
-    | 'Origin'
-    | 'Origin-Agent-Cluster'
-    | 'Permissions-Policy'
-    | 'Pragma'
-    | 'Proxy-Authenticate'
-    | 'Proxy-Authorization'
-    | 'RTT'
-    | 'Range'
-    | 'Referer'
-    | 'Referrer-Policy'
-    | 'Retry-After'
-    | 'Save-Data'
-    | 'Sec-CH-Prefers-Color-Scheme'
-    | 'Sec-CH-Prefers-Reduced-Motion'
-    | 'Sec-CH-Prefers-Reduced-Transparency'
-    | 'Sec-CH-UA'
-    | 'Sec-CH-UA-Arch'
-    | 'Sec-CH-UA-Bitness'
-    | 'Sec-CH-UA-Full-Version'
-    | 'Sec-CH-UA-Full-Version-List'
-    | 'Sec-CH-UA-Mobile'
-    | 'Sec-CH-UA-Model'
-    | 'Sec-CH-UA-Platform'
-    | 'Sec-CH-UA-Platform-Version'
-    | 'Sec-Fetch-Dest'
-    | 'Sec-Fetch-Mode'
-    | 'Sec-Fetch-Site'
-    | 'Sec-Fetch-User'
-    | 'Sec-GPC'
-    | 'Sec-Purpose'
-    | 'Sec-WebSocket-Accept'
-    | 'Server'
-    | 'Server-Timing'
-    | 'Service-Worker-Navigation-Preload'
-    | 'Set-Cookie'
-    | 'Set-Login'
-    | 'SourceMap'
-    | 'Strict-Transport-Security'
-    | 'Supports-Loading-Mode'
-    | 'TE'
-    | 'Timing-Allow-Origin'
-    | 'Tk'
-    | 'Trailer'
-    | 'Transfer-Encoding'
-    | 'Upgrade'
-    | 'Upgrade-Insecure-Requests'
-    | 'User-Agent'
-    | 'Vary'
-    | 'Via'
-    | 'Viewport-Width'
-    | 'WWW-Authenticate'
-    | 'Want-Digest'
-    | 'Warning'
-    | 'Width'
-    | 'X-Content-Type-Options'
-    | 'X-DNS-Prefetch-Control'
-    | 'X-Forwarded-For'
-    | 'X-Forwarded-Host'
-    | 'X-Forwarded-Proto'
-    | 'X-Frame-Options'
-    | 'X-XSS-Protection'
-type FetchHeaderKeyString = FetchHeaderKey | IncludeString
+    public build(): FetchUnit<
+        $Method,
+        $PathParams,
+        $SearchParams,
+        $Body,
+        $Response,
+        $ModeOptions,
+        $BaseUrl
+    > {
+        return new FetchUnit<
+            $Method,
+            $PathParams,
+            $SearchParams,
+            $Body,
+            $Response,
+            $ModeOptions,
+            $BaseUrl
+        >(this.$store, this)
+    }
 
-export class FetchBuilder {
-    public method: FetchMethodString = ''
-    public setMethod(method: FetchBuilder['method']): FetchBuilder {
-        this.method = method
+    public static Create<
+        FetchMethod extends FetchMethodString,
+        FetchPathParams extends FetchPathParamsShape = unknown,
+        FetchSearchParams extends FetchSearchParamsShape = unknown,
+        FetchBody = unknown,
+        FetchResponse = unknown,
+        FetchModeOptions extends
+            FetchModeOptionsShape = DefaultFetchModeOptions,
+        const FetchBaseUrl extends string = '',
+    >(): FetchBuilder<
+        FetchMethod,
+        FetchPathParams,
+        FetchSearchParams,
+        FetchBody,
+        FetchResponse,
+        FetchModeOptions,
+        FetchBaseUrl
+    > {
+        return new FetchBuilder<
+            FetchMethod,
+            FetchPathParams,
+            FetchSearchParams,
+            FetchBody,
+            FetchResponse,
+            FetchModeOptions,
+            FetchBaseUrl
+        >()
+    }
+
+    private constructor() {
+        this._store = new FetchOptionStore()
+    }
+
+    private _store: FetchOptionStore
+    public get $store(): FetchOptionStore {
+        return this._store
+    }
+
+    public def_method<const Method extends FetchMethod>(
+        method: Method
+    ): FetchBuilder<
+        Method,
+        $PathParams,
+        $SearchParams,
+        $Body,
+        $Response,
+        $ModeOptions,
+        $BaseUrl
+    > {
+        this._store.method = method
         return this
     }
-    public url: FetchUrl = ''
-    public setUrl(url: FetchUrl): FetchBuilder {
-        this.url = url
+    public def_url<const Url extends string>(
+        url: Url
+    ): FetchBuilder<
+        $Method,
+        $PathParams,
+        $SearchParams,
+        $Body,
+        $Response,
+        $ModeOptions,
+        Url
+    > {
+        this.$store.defaultUrl = url
         return this
     }
-    public cache: FetchOption['cache'] = 'default'
-    public setCache(cache: FetchBuilder['cache']): FetchBuilder {
-        this.cache = cache
+    public def_default_cache(cache: FetchOption['cache']) {
+        this.$store.defaultCache = cache
         return this
     }
-    public body: FetchOption['body'] = null
-    public setBody(body: FetchBuilder['body']): FetchBuilder {
-        this.body = body
+    public def_default_mode(mode: FetchOption['mode']) {
+        this.$store.defaultMode = mode
         return this
     }
-    public headers: FetchOption['headers'] & {
-        [key in FetchHeaderKeyString]?: string
-    } = {}
-    public setHeaders(headers: FetchBuilder['headers']): FetchBuilder {
-        this.headers = headers
+    public def_default_credentials(credentials: FetchOption['credentials']) {
+        this.$store.defaultCredentials = credentials
         return this
     }
-    public credentials: FetchOption['credentials'] = 'same-origin'
-    public setCredentials(
-        credentials: FetchBuilder['credentials']
-    ): FetchBuilder {
-        this.credentials = credentials
+    public def_default_redirect(redirect: FetchOption['redirect']) {
+        this.$store.defaultRedirect = redirect
         return this
     }
-    public redirect: FetchOption['redirect'] = 'follow'
-    public setRedirect(redirect: FetchBuilder['redirect']): FetchBuilder {
-        this.redirect = redirect
+    public def_default_referrer(referrer: FetchOption['referrer']) {
+        this.$store.defaultReferrer = referrer
         return this
     }
-    public referrer: FetchOption['referrer'] = 'client'
-    public setReferrer(referrer: FetchBuilder['referrer']): FetchBuilder {
-        this.referrer = referrer
+    public def_default_referrer_policy(
+        referrerPolicy: FetchOption['referrerPolicy']
+    ) {
+        this.$store.defaultReferrerPolicy = referrerPolicy
         return this
     }
-    public referrerPolicy: FetchOption['referrerPolicy'] = 'no-referrer'
-    public setReferrerPolicy(
-        referrerPolicy: FetchBuilder['referrerPolicy']
-    ): FetchBuilder {
-        this.referrerPolicy = referrerPolicy
+    public def_default_integrity(integrity: FetchOption['integrity']) {
+        this.$store.defaultIntegrity = integrity
         return this
     }
-    public integrity: FetchOption['integrity'] = ''
-    public setIntegrity(integrity: FetchBuilder['integrity']): FetchBuilder {
-        this.integrity = integrity
+    public def_default_keepalive(keepalive: FetchOption['keepalive']) {
+        this.$store.defaultKeepalive = keepalive
         return this
     }
-    public keepalive: FetchOption['keepalive'] = false
-    public setKeepalive(keepalive: FetchBuilder['keepalive']): FetchBuilder {
-        this.keepalive = keepalive
+    public def_default_signal(signal: FetchOption['signal']) {
+        this.$store.defaultSignal = signal
         return this
     }
-    public signal: FetchOption['signal'] = null
-    public setSignal(signal: FetchBuilder['signal']): FetchBuilder {
-        this.signal = signal
+    public def_default_window(window: FetchOption['window']) {
+        this.$store.defaultWindow = window
         return this
     }
-    public window: FetchOption['window'] = null
-    public setWindow(window: FetchBuilder['window']): FetchBuilder {
-        this.window = window
+    public def_default_priority(priority: FetchOption['priority']) {
+        this.$store.defaultPriority = priority
         return this
     }
-    public mode: FetchOption['mode'] = 'cors'
-    public setMode(mode: FetchBuilder['mode']): FetchBuilder {
-        this.mode = mode
+
+    public searchParamsValidator: (
+        searchParams: FetchSearchParamsShape
+    ) => $SearchParams = (s) => s as $SearchParams
+    public def_searchparams<FetchSearchParamsInjection extends $SearchParams>(
+        searchParamsValidator: (
+            params: FetchSearchParamsShape
+        ) => FetchSearchParamsInjection
+    ): FetchBuilder<
+        $Method,
+        $PathParams,
+        FetchSearchParamsInjection,
+        $Body,
+        $Response,
+        $ModeOptions,
+        $BaseUrl
+    > {
+        this.searchParamsValidator = searchParamsValidator
+        return this as unknown as FetchBuilder<
+            $Method,
+            $PathParams,
+            FetchSearchParamsInjection,
+            $Body,
+            $Response,
+            $ModeOptions,
+            $BaseUrl
+        >
+    }
+
+    public readonly fetchErrorProcedure: ProcedureSet<{
+        error: FetchResponseError
+        status?: FetchErrorCode
+    }> = new ProcedureSet()
+    public def_fetch_err_handler(
+        fetchErrorProcedure: Procedure<{
+            error: FetchResponseError
+            status?: FetchErrorCode
+        }>,
+        once: boolean = false
+    ): FetchBuilder<
+        $Method,
+        $PathParams,
+        $SearchParams,
+        $Body,
+        $Response,
+        $ModeOptions,
+        $BaseUrl
+    > {
+        this.fetchErrorProcedure.use(fetchErrorProcedure, once)
         return this
     }
-    public priority: FetchOption['priority'] = 'auto'
-    public setPriority(priority: FetchBuilder['priority']): FetchBuilder {
-        this.priority = priority
+
+    public readonly unknownErrorProcedure: ProcedureSet<{
+        error: unknown
+    }> = new ProcedureSet()
+    public def_unknown_err_handler(
+        unknownErrorProcedure: Procedure<{
+            error: unknown
+        }>,
+        once: boolean = false
+    ): FetchBuilder<
+        $Method,
+        $PathParams,
+        $SearchParams,
+        $Body,
+        $Response,
+        $ModeOptions,
+        $BaseUrl
+    > {
+        this.unknownErrorProcedure.use(unknownErrorProcedure, once)
         return this
     }
-    public get defaultFetchOption(): FetchOption {
-        return {
-            headers: this.headers,
-            referrerPolicy: this.referrerPolicy,
-            credentials: this.credentials,
-            integrity: this.integrity,
-            keepalive: this.keepalive,
-            referrer: this.referrer,
-            redirect: this.redirect,
-            method: this.method,
-            signal: this.signal,
-            window: this.window,
-            cache: this.cache,
-            mode: this.mode,
-            body: this.body,
-            priority: this.priority,
-        }
+
+    public readonly finallyProcedure: ProcedureSet<
+        FetchQueryOptions<$PathParams, $SearchParams, $Body>
+    > = new ProcedureSet()
+    public def_final_handler(
+        finallyHandler: Procedure<
+            FetchQueryOptions<$PathParams, $SearchParams, $Body>
+        >,
+        once: boolean = false
+    ): FetchBuilder<
+        $Method,
+        $PathParams,
+        $SearchParams,
+        $Body,
+        $Response,
+        $ModeOptions,
+        $BaseUrl
+    > {
+        this.finallyProcedure.use(finallyHandler, once)
+        return this
+    }
+
+    public bodyValidator: (body: unknown) => $Body = (s) => s as $Body
+    /**
+     * @description Validate body data using any schema validation library
+     * @param bodyValidator validate body data, return parsed body data
+     * @example
+     * ```ts
+     * // Example using zod
+     * import { z } from "zod"
+     *
+     * const BodyZod = z.object({ name: z.string() })
+     * const fetchUnit = f.unit().def_body(BodyZod.parse)
+     *
+     * // Example using metal-box/type
+     * import { t } from "@metal-box/type"
+     *
+     * const BodyMetal = t.object({ name: t.string })
+     * const fetchUnit2 = f.unit().def_body(BodyMetal.parse)
+     * ```
+     */
+    public def_body<FetchBodyInjection extends $Body>(
+        bodyValidator: (body: unknown) => FetchBodyInjection
+    ): FetchBuilder<
+        $Method,
+        $PathParams,
+        $SearchParams,
+        FetchBodyInjection,
+        $Response,
+        $ModeOptions,
+        $BaseUrl
+    > {
+        this.bodyValidator = bodyValidator
+        return this as unknown as FetchBuilder<
+            $Method,
+            $PathParams,
+            $SearchParams,
+            FetchBodyInjection,
+            $Response,
+            $ModeOptions,
+            $BaseUrl
+        >
+    }
+
+    public responseHandler: (
+        responseArgument: $ModeOptions['isJsonMode'] extends true
+            ? {
+                  response: Response
+                  json: JSON
+              }
+            : {
+                  response: Response
+              }
+    ) => $Response = (s) => s.response as $Response
+    /**
+     * @description Define response data
+     * @param responseHandler validate response data, return processed response data
+     */
+    public def_response<FetchResponseInjection extends $Response>(
+        responseHandler: (
+            responseArgument: $ModeOptions['isJsonMode'] extends true
+                ? {
+                      response: Response
+                      json: JSON
+                  }
+                : {
+                      response: Response
+                  }
+        ) => FetchResponseInjection
+    ): FetchBuilder<
+        $Method,
+        $PathParams,
+        $SearchParams,
+        $Body,
+        Awaited<FetchResponseInjection>,
+        $ModeOptions,
+        $BaseUrl
+    > {
+        this.responseHandler = responseHandler
+        return this as unknown as FetchBuilder<
+            $Method,
+            $PathParams,
+            $SearchParams,
+            $Body,
+            Awaited<FetchResponseInjection>,
+            $ModeOptions,
+            $BaseUrl
+        >
+    }
+
+    public requestHandler: FetchUnitRequestHandler<
+        $PathParams,
+        $SearchParams,
+        $Body
+    > = (s) => s.request
+    /**
+     * @description Handle request data
+     * @param requestHandler handle request data, return processed request data
+     */
+    public def_request_handler(
+        requestHandler: FetchUnitRequestHandler<
+            $PathParams,
+            $SearchParams,
+            $Body
+        >
+    ): FetchBuilder<
+        $Method,
+        $PathParams,
+        $SearchParams,
+        $Body,
+        $Response,
+        $ModeOptions,
+        $BaseUrl
+    > {
+        this.requestHandler = requestHandler
+        return this
+    }
+
+    public isJsonMode: ConcreteBoolean = false
+    public def_json(): FetchBuilder<
+        $Method,
+        $PathParams,
+        $SearchParams,
+        $Body,
+        $Response,
+        {
+            isJsonMode: true
+            isSafeMode: $ModeOptions['isSafeMode']
+        },
+        $BaseUrl
+    > {
+        if (this.isJsonMode)
+            return this as unknown as FetchBuilder<
+                $Method,
+                $PathParams,
+                $SearchParams,
+                $Body,
+                $Response,
+                {
+                    isJsonMode: true
+                    isSafeMode: $ModeOptions['isSafeMode']
+                },
+                $BaseUrl
+            >
+
+        this.isJsonMode = true
+        return this as unknown as FetchBuilder<
+            $Method,
+            $PathParams,
+            $SearchParams,
+            $Body,
+            $Response,
+            {
+                isJsonMode: true
+                isSafeMode: $ModeOptions['isSafeMode']
+            },
+            $BaseUrl
+        >
+    }
+
+    public isSafeMode: ConcreteBoolean = false
+    public def_query_mode<const QueryMode extends 'throw' | 'not_throw'>(
+        queryMode: QueryMode
+    ): FetchBuilder<
+        $Method,
+        $PathParams,
+        $SearchParams,
+        $Body,
+        $Response,
+        {
+            isJsonMode: $ModeOptions['isJsonMode']
+            isSafeMode: QueryMode extends 'throw' ? false : true
+        },
+        $BaseUrl
+    > {
+        this.isSafeMode = queryMode === 'not_throw'
+        return this
     }
 }
+
+/**
+ * @description Fetch builder shape type
+ */
+export type FetchBuilderShape = FetchBuilder<
+    FetchMethodString,
+    any,
+    any,
+    any,
+    any,
+    FetchModeOptionsShape,
+    string
+>
+
+export type DefaultFetchBuilderShape = FetchBuilder<
+    string,
+    unknown,
+    unknown,
+    unknown,
+    unknown,
+    {
+        isJsonMode: ConcreteBoolean
+        isSafeMode: ConcreteBoolean
+    },
+    ''
+>
+
+export const unit = FetchBuilder.Create
