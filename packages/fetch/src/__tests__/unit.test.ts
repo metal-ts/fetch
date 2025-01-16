@@ -4,6 +4,7 @@ import { setupServer } from 'msw/node'
 import { TypeEqual, expectType } from 'ts-expect'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { FetchPathParamsError, FetchResponseError } from '../core/error'
+import { FetchBuilder } from '../core/fetcher'
 import { FetchUnit, type InferFetchUnit } from '../core/fetcher/unit'
 import { label } from './utils/test.label'
 
@@ -58,18 +59,18 @@ afterEach(() => apiServer.resetHandlers())
 
 describe('FetchUnit', () => {
     it(label.case('should CREATE a new instance'), () => {
-        const fetchUnit = FetchUnit.Create()
+        const fetchUnit = FetchBuilder.Create().build()
         expect(fetchUnit).toBeInstanceOf(FetchUnit)
     })
 
     it(label.case('should SET fetch error procedure'), () => {
-        const fetchUnit = FetchUnit.Create()
+        const fetchUnit = FetchBuilder.Create()
         const result = fetchUnit
-            .handle_fetch_error(({ error, status }) => {
+            .def_fetch_err_handler(({ error, status }) => {
                 // eslint-disable-next-line no-console
                 console.error(error, status)
             })
-            .handle_fetch_error(({ error, status }) => {
+            .def_fetch_err_handler(({ error, status }) => {
                 // eslint-disable-next-line no-console
                 console.error(error, status)
             })
@@ -78,13 +79,13 @@ describe('FetchUnit', () => {
     })
 
     it(label.case('should SET unknown error procedure'), () => {
-        const fetchUnit = FetchUnit.Create()
+        const fetchUnit = FetchBuilder.Create()
         const result = fetchUnit
-            .handle_unknown_error(({ error }) => {
+            .def_unknown_err_handler(({ error }) => {
                 // eslint-disable-next-line no-console
                 console.error(error)
             })
-            .handle_unknown_error(({ error }) => {
+            .def_unknown_err_handler(({ error }) => {
                 // eslint-disable-next-line no-console
                 console.error(error)
             })
@@ -92,13 +93,13 @@ describe('FetchUnit', () => {
     })
 
     it(label.case('should SET finally procedure'), () => {
-        const fetchUnit = FetchUnit.Create()
+        const fetchUnit = FetchBuilder.Create()
         const result = fetchUnit
-            .handle_finally(({ headers }) => {
+            .def_final_handler(({ headers }) => {
                 // eslint-disable-next-line no-console
                 console.log('HEADERS', headers)
             })
-            .handle_finally((info) => {
+            .def_final_handler((info) => {
                 // eslint-disable-next-line no-console
                 console.log('FETCH_INFO', info)
             })
@@ -106,14 +107,14 @@ describe('FetchUnit', () => {
     })
 
     it(label.case('should SET request procedure'), () => {
-        const fetchUnit = FetchUnit.Create()
+        const fetchUnit = FetchBuilder.Create()
         const result = fetchUnit
-            .handle_request(({ request, queryOptions }) => {
+            .def_request_handler(({ request, queryOptions }) => {
                 // eslint-disable-next-line no-console
                 console.log('REQUEST', request, queryOptions)
                 return request
             })
-            .handle_request(({ request }) => {
+            .def_request_handler(({ request }) => {
                 request.headers.set('Authorization', 'Bearer token')
                 return request
             })
@@ -122,9 +123,8 @@ describe('FetchUnit', () => {
     })
 
     it(label.case('should SET json mode for automatic parsing'), () => {
-        const fetchUnit = FetchUnit.Create()
-        const result = fetchUnit.set_json()
-        expect(fetchUnit).toBe(result)
+        const fetchUnit = FetchBuilder.Create()
+        const result = fetchUnit.def_json().build()
 
         type InjectedFetchUnit = FetchUnit<
             string,
@@ -141,100 +141,79 @@ describe('FetchUnit', () => {
         expectType<InjectedFetchUnit>(result)
     })
 
-    it(label.case('should SET body'), () => {
-        const fetchUnit = FetchUnit.Create()
-        const body = {
-            name: 'Book',
-            category: 'Fiction',
-            price: 100,
-        }
-        const result = fetchUnit.set_body(body)
-        expect(fetchUnit).toBe(result)
-    })
-
-    it(label.case('should SET headers'), () => {
-        const fetchUnit = FetchUnit.Create()
-        const headers = {
-            'Content-Type': 'application/json',
-        }
-        const result = fetchUnit.set_headers(headers)
-        expect(fetchUnit).toBe(result)
-    })
-
     it(label.case('should SET credentials'), () => {
-        const fetchUnit = FetchUnit.Create()
+        const fetchUnit = FetchBuilder.Create()
         const credentials = 'same-origin'
-        const result = fetchUnit.set_credentials(credentials)
+        const result = fetchUnit.def_default_credentials(credentials)
         expect(fetchUnit).toBe(result)
     })
 
     it(label.case('should SET redirect'), () => {
-        const fetchUnit = FetchUnit.Create()
+        const fetchUnit = FetchBuilder.Create()
         const redirect = 'follow'
-        const result = fetchUnit.set_redirect(redirect)
+        const result = fetchUnit.def_default_redirect(redirect)
         expect(fetchUnit).toBe(result)
     })
 
     it(label.case('should SET referrer'), () => {
-        const fetchUnit = FetchUnit.Create()
+        const fetchUnit = FetchBuilder.Create()
         const referrer = 'client'
-        const result = fetchUnit.set_referrer(referrer)
+        const result = fetchUnit.def_default_referrer(referrer)
         expect(fetchUnit).toBe(result)
     })
 
     it(label.case('should SET referrer policy'), () => {
-        const fetchUnit = FetchUnit.Create()
+        const fetchUnit = FetchBuilder.Create()
         const referrerPolicy = 'no-referrer'
-        const result = fetchUnit.set_referrer_policy(referrerPolicy)
+        const result = fetchUnit.def_default_referrer_policy(referrerPolicy)
         expect(fetchUnit).toBe(result)
     })
 
     it(label.case('should SET integrity'), () => {
-        const fetchUnit = FetchUnit.Create()
+        const fetchUnit = FetchBuilder.Create()
         const integrity = 'sha256-abcde'
-        const result = fetchUnit.set_integrity(integrity)
+        const result = fetchUnit.def_default_integrity(integrity)
         expect(fetchUnit).toBe(result)
     })
 
     it(label.case('should SET keepalive'), () => {
-        const fetchUnit = FetchUnit.Create()
+        const fetchUnit = FetchBuilder.Create()
         const keepalive = true
-        const result = fetchUnit.set_keepalive(keepalive)
+        const result = fetchUnit.def_default_keepalive(keepalive)
         expect(fetchUnit).toBe(result)
     })
 
     it(label.case('should SET signal'), () => {
-        const fetchUnit = FetchUnit.Create()
+        const fetchUnit = FetchBuilder.Create()
         const controller = new AbortController()
-        const result = fetchUnit.set_signal(controller.signal)
+        const result = fetchUnit.def_default_signal(controller.signal)
         expect(fetchUnit).toBe(result)
     })
 
     it(label.case('should SET window'), () => {
-        const fetchUnit = FetchUnit.Create()
+        const fetchUnit = FetchBuilder.Create()
         const window = null
-        const result = fetchUnit.set_window(window)
+        const result = fetchUnit.def_default_window(window)
         expect(fetchUnit).toBe(result)
     })
 
     it(label.case('should SET mode'), () => {
-        const fetchUnit = FetchUnit.Create()
+        const fetchUnit = FetchBuilder.Create()
         const mode = 'cors'
-        const result = fetchUnit.set_mode(mode)
+        const result = fetchUnit.def_default_mode(mode)
         expect(fetchUnit).toBe(result)
     })
 
     it(label.case('should SET cache'), () => {
-        const fetchUnit = FetchUnit.Create()
+        const fetchUnit = FetchBuilder.Create()
         const cache = 'default'
-        const result = fetchUnit.set_cache(cache)
+        const result = fetchUnit.def_default_cache(cache)
         expect(fetchUnit).toBe(result)
     })
 
     it(label.case('should SET safe mode'), () => {
-        const fetchUnit = FetchUnit.Create()
-        const result = fetchUnit.set_query_mode('not_throw')
-        expect(fetchUnit).toBe(result)
+        const fetchUnit = FetchBuilder.Create()
+        const result = fetchUnit.def_query_mode('not_throw').build()
 
         type InjectedFetchUnit = FetchUnit<
             string,
@@ -252,7 +231,7 @@ describe('FetchUnit', () => {
     })
 
     it(label.case('should DEFINE search params shape'), () => {
-        const fetchUnit = FetchUnit.Create()
+        const fetchUnit = FetchBuilder.Create()
         const SearchParams = t
             .object({
                 name: t.string,
@@ -264,8 +243,7 @@ describe('FetchUnit', () => {
                 text_length: e.name.length + e.category.length,
             }))
 
-        const result = fetchUnit.def_searchparams(SearchParams.parse)
-        expect(fetchUnit).toBe(result)
+        const result = fetchUnit.def_searchparams(SearchParams.parse).build()
 
         type InjectedFetchUnit = FetchUnit<
             string,
@@ -283,15 +261,14 @@ describe('FetchUnit', () => {
     })
 
     it(label.case('should DEFINE body shape'), () => {
-        const fetchUnit = FetchUnit.Create()
+        const fetchUnit = FetchBuilder.Create()
         const BookRequest = t.object({
             name: t.string,
             category: t.string,
             price: t.number,
         })
 
-        const result = fetchUnit.def_body(BookRequest.parse)
-        expect(fetchUnit).toBe(result)
+        const result = fetchUnit.def_body(BookRequest.parse).build()
 
         type InjectedFetchUnit = FetchUnit<
             string,
@@ -332,15 +309,16 @@ describe('FetchUnit', () => {
                 },
             }))
 
-        const postDynamicUnit = FetchUnit.Create()
-            .set_method('GET')
+        const postDynamicUnit = FetchBuilder.Create()
+            .def_method('GET')
             // DYNAMIC path params: $id
-            .set_url(`${BASE_URL}/books/$id`)
-            .set_query_mode('throw')
-            .set_referrer('about:client')
-            .set_json()
+            .def_url(`${BASE_URL}/books/$id`)
+            .def_query_mode('throw')
+            .def_default_referrer('about:client')
+            .def_json()
             .def_searchparams(SearchParams.parse)
             .def_response(({ json }) => BookResponse.parse(json))
+            .build()
 
         const searchParams = {
             name: 'Harry Potter',
@@ -349,7 +327,7 @@ describe('FetchUnit', () => {
         const searchId = 123
         const apiResponse = await postDynamicUnit.query({
             search: searchParams,
-            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+
             //@ts-ignore
             path: {
                 id: searchId,
@@ -367,17 +345,16 @@ describe('FetchUnit', () => {
     it(
         label.case('should DEFINE response shape [json mode - activated]'),
         () => {
-            const fetchUnit = FetchUnit.Create().set_json()
+            const fetchUnit = FetchBuilder.Create().def_json()
 
             const Product = t.object({
                 name: t.string,
                 price: t.number,
             })
-            const result = fetchUnit.def_response(({ json }) =>
-                Product.parse(json)
-            )
+            const result = fetchUnit
+                .def_response(({ json }) => Product.parse(json))
+                .build()
 
-            expect(fetchUnit).toBe(result)
             type InjectedFetchUnit = FetchUnit<
                 string,
                 unknown,
@@ -398,20 +375,20 @@ describe('FetchUnit', () => {
     it(
         label.case('should DEFINE response shape [json mode - deactivated]'),
         async () => {
-            const fetchUnit = FetchUnit.Create()
+            const fetchUnit = FetchBuilder.Create().def_json()
 
             const Product = t.object({
                 name: t.string,
                 price: t.number,
             })
-            const result = fetchUnit.def_response(async ({ response }) => {
-                // Manual parsing for json response
-                const json = await response.json()
-                const product = Product.parse(json)
-                return product
-            })
+            const result = fetchUnit
+                .def_response(async ({ json }) => {
+                    // Manual parsing for json response
+                    const product = Product.parse(json)
+                    return product
+                })
+                .build()
 
-            expect(fetchUnit).toBe(result)
             type InjectedFetchUnit = FetchUnit<
                 string,
                 unknown,
@@ -419,7 +396,7 @@ describe('FetchUnit', () => {
                 unknown,
                 Infer<typeof Product>,
                 {
-                    isJsonMode: false
+                    isJsonMode: true
                     isSafeMode: false
                 },
                 ''
@@ -440,15 +417,15 @@ describe('FetchUnit', () => {
             status: t.union(t.literal('success'), t.literal('error')),
             'message?': t.string,
         })
-        const postUnit = FetchUnit.Create()
-            .set_query_mode('throw')
-            .set_method('POST')
-            .set_referrer('about:client')
-            .set_url(`${BASE_URL}/books`)
-            .set_json()
-
+        const postUnit = FetchBuilder.Create()
+            .def_query_mode('throw')
+            .def_method('POST')
+            .def_default_referrer('about:client')
+            .def_url(`${BASE_URL}/books`)
+            .def_json()
             .def_body(Body.parse)
             .def_response(({ json }) => ApiResponse.parse(json))
+            .build()
 
         type PostUnit = FetchUnit<
             'POST',
@@ -516,15 +493,16 @@ describe('FetchUnit', () => {
             >('FormData', (e) => e instanceof FormData)
             .transform(toJson)
 
-        const fetchUnit = FetchUnit.Create()
-            .set_query_mode('throw')
-            .set_method('POST')
-            .set_referrer('about:client')
-            .set_url(`${BASE_URL}/books/images`)
+        const fetchUnit = FetchBuilder.Create()
+            .def_query_mode('throw')
+            .def_method('POST')
+            .def_default_referrer('about:client')
+            .def_url(`${BASE_URL}/books/images`)
             .def_body(BlobShape.parse)
             .def_response(async ({ response }) =>
                 FormDataShape.parse(await response.formData())
             )
+            .build()
 
         const passingBodyBlob = new Blob(['Hello, World!'], {
             type: 'text/plain',
@@ -545,18 +523,19 @@ describe('FetchUnit', () => {
         let isFetchErrorHandled = false
         let errorStatusCode: number | undefined
 
-        const fetchUnit = FetchUnit.Create()
-            .set_query_mode('throw')
-            .set_method('GET')
-            .set_referrer('about:client')
-            .set_url(`${BASE_URL}/books`)
-            .set_json()
-            .handle_fetch_error(() => {
+        const fetchUnit = FetchBuilder.Create()
+            .def_query_mode('throw')
+            .def_method('GET')
+            .def_default_referrer('about:client')
+            .def_url(`${BASE_URL}/books`)
+            .def_json()
+            .def_fetch_err_handler(() => {
                 isFetchErrorHandled = true
             }, true)
-            .handle_fetch_error(({ status }) => {
+            .def_fetch_err_handler(({ status }) => {
                 errorStatusCode = status
             })
+            .build()
 
         try {
             await fetchUnit.query()
@@ -585,21 +564,23 @@ describe('FetchUnit', () => {
     it(label.case('should HANDLE unknown error & handled once'), async () => {
         let errorHandled = false
 
-        const fetchUnit = FetchUnit.Create()
-            .set_query_mode('throw')
-            .set_method('GET')
-            .set_referrer('about:client')
-            .set_url('https://unknown.com')
-            .set_json()
-            .handle_unknown_error(() => {
+        const fetchUnit = FetchBuilder.Create()
+            .def_query_mode('throw')
+            .def_method('GET')
+            .def_default_referrer('about:client')
+            .def_url('https://unknown.com')
+            .def_json()
+            .def_query_mode('not_throw')
+            .def_unknown_err_handler(() => {
                 // ERROR_HANDLED should be called only once
                 errorHandled = true
             }, true)
-            .handle_unknown_error(() => {
+            .def_unknown_err_handler(() => {
                 // LOGGER should be called every time
                 // eslint-disable-next-line no-console
                 console.log('ERROR_HANDLED', errorHandled)
             })
+            .build()
 
         try {
             await fetchUnit.query()
@@ -616,8 +597,6 @@ describe('FetchUnit', () => {
             expect(error).toBeInstanceOf(Error)
         }
 
-        fetchUnit.set_query_mode('not_throw')
-
         const thisWillNotThrowError = await fetchUnit.query()
         expect(thisWillNotThrowError).toBeUndefined()
     })
@@ -628,7 +607,7 @@ describe('FetchUnit', () => {
         ),
         () => {
             try {
-                FetchUnit.Create().set_url(`${BASE_URL}/books/_$id`)
+                FetchBuilder.Create().def_url(`${BASE_URL}/books/_$id`).build()
             } catch (e) {
                 expect(e).toBeInstanceOf(FetchPathParamsError)
             }
