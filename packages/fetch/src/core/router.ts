@@ -1,30 +1,44 @@
-import type { FetchMethod, FetchMethodString } from './fetcher/builder'
+import { FetchUnit, FetchUnitShape, InferFetchUnit } from './fetcher'
 import {
-    DefaultFetchUnitShape,
-    FetchUnit,
-    type FetchUnitShape,
-    type InferFetchUnit,
-    type Param,
-} from './fetcher/unit'
+    type DefaultFetchBuilderShape,
+    FetchBuilder,
+    type FetchBuilderShape,
+} from './fetcher/builder'
+import type { FetchMethod, Param } from './fetcher/core.type'
 
-export type BuilderStructure =
+type Structure<T> =
     | {
-          [Key in FetchMethod]?: FetchUnitShape
+          [Key in FetchMethod]?: T
       }
     | {
-          [Key in string]?: BuilderStructure
+          [Key in string]?: Structure<T>
       }
+type BuilderStructure = Structure<FetchBuilderShape>
+type UnitStructure = Structure<FetchUnitShape>
 
 class Router<
     const RouterBaseUrl extends string,
-    const RouterStructure extends BuilderStructure,
+    const RouterBuilderStructure extends BuilderStructure,
 > {
     public constructor(
         routerBaseUrl: RouterBaseUrl,
-        public readonly routerStructure: RouterStructure
+        routerStructure: RouterBuilderStructure
     ) {
-        this.buildUrlStructure(routerStructure, routerBaseUrl)
-        this.buildFetchMethod(routerStructure)
+        this._buildedRouterStructure = this.buildRouterStructure(
+            routerStructure,
+            routerBaseUrl
+        )
+    }
+
+    private _buildedRouterStructure: BuildRouterUrlFromStructure<
+        RouterBuilderStructure,
+        RouterBaseUrl
+    >
+    public get routerStructure(): BuildRouterUrlFromStructure<
+        RouterBuilderStructure,
+        RouterBaseUrl
+    > {
+        return this._buildedRouterStructure
     }
 
     private static fetchMethodSet = new Set<FetchMethod>([
@@ -39,59 +53,89 @@ class Router<
         'TRACE',
     ])
 
-    private static isFetchMethod(
-        value: unknown
-    ): value is FetchMethodString[number] {
+    private static isFetchMethod(value: unknown): value is FetchMethod {
         return this.fetchMethodSet.has(value as FetchMethod)
     }
 
-    public static isFetchUnit(unit: unknown): unit is DefaultFetchUnitShape {
-        return unit instanceof FetchUnit
+    public static isFetchBuilder(
+        unit: unknown
+    ): unit is DefaultFetchBuilderShape {
+        return unit instanceof FetchBuilder
     }
 
-    private buildFetchMethod(structure: BuilderStructure): void {
-        const $structure = Object.entries(structure)
+    private static getUrlPath(baseUrl = '', subPath?: string): string {
+        if (!subPath) return baseUrl
+        return baseUrl ? `${baseUrl}/${subPath}` : subPath
+    }
+    private static isRecord(value: unknown): value is Record<string, unknown> {
+        return typeof value === 'object' && value !== null
+    }
 
-        $structure.forEach(([key, value]) => {
-            if (!value)
-                throw new Error(`Router structure should be defined at ${key}.`)
+    private buildRouterStructure<T extends Record<string, unknown>>(
+        structure: BuilderStructure,
+        baseUrl: string = ''
+    ): T {
+        const result = {} as Record<string, unknown>
 
-            if (Router.isFetchUnit(value) && Router.isFetchMethod(key)) {
-                value.set_method(key)
-                return
+        for (const key of Object.keys(structure)) {
+            const value = structure[key as keyof typeof structure]
+
+            if (!value) {
+                throw new Error(
+                    `Router structure should be defined at ${String(key)}.`
+                )
             }
 
-            return this.buildFetchMethod(value)
-        })
-    }
-
-    private buildUrlStructure(
-        structure: BuilderStructure,
-        baseUrl?: string
-    ): void {
-        const PATH_DIVIDER = '/' as const
-        const getUrl = (url?: string, subPath?: string) => {
-            const urlPath: string = url || ''
-            return subPath
-                ? `${urlPath}${PATH_DIVIDER}${subPath}`
-                : `${urlPath}`
+            if (Router.isFetchMethod(key) && Router.isFetchBuilder(value)) {
+                // 1. URL / Method
+                value.def_url(Router.getUrlPath(baseUrl))
+                value.def_method(key)
+                // 2. Build
+                result[key] = value.build()
+            } else if (Router.isRecord(value)) {
+                result[key] = this.buildRouterStructure(
+                    value,
+                    Router.getUrlPath(baseUrl, key as string)
+                )
+            } else {
+                throw new Error(
+                    `Invalid router structure at key: ${String(key)}`
+                )
+            }
         }
 
-        const $structure = Object.entries(structure)
-
-        $structure.forEach(([key, value]) => {
-            if (!value)
-                throw new Error(`Router structure should be defined at ${key}.`)
-
-            if (Router.isFetchUnit(value) && Router.isFetchMethod(key)) {
-                value.set_url(getUrl(baseUrl))
-                return
-            }
-
-            return this.buildUrlStructure(value, getUrl(baseUrl, key))
-        })
+        return result as T
     }
 }
+
+//TODO: Add transformer for router
+/**
+ * @example
+ * ```ts
+ *
+ * const ex =
+ * {
+ *      api: {
+ *           "auth-login": {
+ *              GET: f.unit()
+ *           }
+ *      }
+ * }
+ *
+ * const transformed =
+ * {
+ *      api: {
+ *          auth: { // auth-login -> auth, we need to change that for convenience!
+ *            GET: f.unit()
+ *      }
+ * }
+ * ```
+    routerTransformer?: <
+        TransformedRouterStructure extends RouterBuilderStructure,
+    >(
+        base: RouterBuilderStructure
+    ) => TransformedRouterStructure
+ */
 
 /**
  * @description Define RESTful API structure with `router`
@@ -146,48 +190,9 @@ export const router = <
     const RouterBuilderStructure extends BuilderStructure,
 >(
     baseUrl: RouterBaseUrl,
-    router: RouterBuilderStructure,
-    //TODO: Add transformer for router
-    /**
-     * @example
-     * ```ts
-     *
-     * const ex =
-     * {
-     *      api: {
-     *           "auth-login": {
-     *              GET: f.unit()
-     *           }
-     *      }
-     * }
-     *
-     * const transformed =
-     * {
-     *      api: {
-     *          auth: { // auth-login -> auth, we need to change that for convenience!
-     *            GET: f.unit()
-     *      }
-     * }
-     * ```
-     */
-    routerTransformer?: <TransformedRouterStructure extends BuilderStructure>(
-        base: RouterBuilderStructure
-    ) => TransformedRouterStructure
+    router: RouterBuilderStructure
 ): BuildRouterUrlFromStructure<RouterBuilderStructure, RouterBaseUrl> => {
-    const transformedRouter = routerTransformer
-        ? routerTransformer(router)
-        : router
-    const baseRouter = new Router<
-        RouterBaseUrl,
-        BuildRouterUrlFromStructure<RouterBuilderStructure, RouterBaseUrl>
-    >(
-        baseUrl,
-        transformedRouter as BuildRouterUrlFromStructure<
-            RouterBuilderStructure,
-            RouterBaseUrl
-        >
-    ).routerStructure
-
+    const baseRouter = new Router(baseUrl, router).routerStructure
     return baseRouter
 }
 
@@ -204,7 +209,7 @@ type BuildRouterUrlFromStructure<
 > = RouterBuilderStructure extends BuilderStructure
     ? {
           [Key in keyof RouterBuilderStructure]: Key extends FetchMethod
-              ? RouterBuilderStructure[Key] extends FetchUnit<
+              ? RouterBuilderStructure[Key] extends FetchBuilder<
                     string,
                     unknown,
                     infer SearchParams,
@@ -243,12 +248,12 @@ type BuildRouterUrlFromStructure<
       }
     : never
 
-export type GetRouterConfig<RouterStructure extends BuilderStructure> = {
+export type GetRouterConfig<RouterStructure extends UnitStructure> = {
     [Key in keyof RouterStructure]: Key extends FetchMethod
         ? RouterStructure[Key] extends FetchUnitShape
             ? InferFetchUnit<RouterStructure[Key]>
             : never
-        : RouterStructure[Key] extends BuilderStructure
+        : RouterStructure[Key] extends UnitStructure
           ? GetRouterConfig<RouterStructure[Key]>
           : never
 }
