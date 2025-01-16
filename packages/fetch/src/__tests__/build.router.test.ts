@@ -81,7 +81,10 @@ describe(label.unit('router api request'), () => {
     it(label.case('[GET] api/books | should get all books'), async () => {
         const books: {
             data: BookModelList
-        } = await api.books.GET.query({
+        } = await api.books.GET.set_options({
+            referrer: 'about:client',
+            cache: 'default',
+        }).query({
             headers: {
                 Authorization: `Bearer ${Auth}`,
             },
@@ -92,9 +95,7 @@ describe(label.unit('router api request'), () => {
     })
 
     it(label.case('[GET] api/books/:id | should get book by id'), async () => {
-        const book: {
-            data: BookModel
-        } = await api.books.$id.GET.query({
+        const book = await api.books.$id.GET.query({
             headers: {
                 Authorization: `Bearer ${Auth}`,
             },
@@ -133,9 +134,7 @@ describe(label.unit('router api request'), () => {
         label.case('[DELETE] api/books/:id | should remove book by id'),
         async () => {
             const removeTarget = SavedBooks[0]!
-            const book: {
-                data: BookModel
-            } = await api.books.$id.DELETE.query({
+            const book = await api.books.$id.DELETE.query({
                 headers: {
                     Authorization: `Bearer ${Auth}`,
                 },
@@ -143,6 +142,7 @@ describe(label.unit('router api request'), () => {
                     id: removeTarget.uuid,
                 },
             })
+
             SavedBooks.shift()
             expect(book).toStrictEqual({
                 data: removeTarget,
@@ -181,6 +181,7 @@ describe(label.unit('router api request'), () => {
             const bookList = await api.category.$name.GET.query({
                 headers: {
                     Authorization: `Bearer ${Auth}`,
+                    'Accept-Language': 'en-US',
                 },
                 path: {
                     name: category,
