@@ -2,10 +2,10 @@
 
 export type IncludeString = string & {}
 
-export type JsonSupported = string | number | boolean | null
-export type JsonType =
-    | Record<string, JsonSupported>
-    | Array<JsonSupported>
+export type JSON_Supported = string | number | boolean | null
+export type JSON =
+    | Record<string, JSON_Supported>
+    | Array<JSON_Supported>
     | string
     | number
     | boolean
