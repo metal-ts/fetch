@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/ban-types */
-
 export type IncludeString = string & {}
 
 export type JSON_Supported = string | number | boolean | null
