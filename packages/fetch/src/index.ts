@@ -5,7 +5,11 @@ import { Middleware } from './utils/middleware'
 /**
  * @description Metal Fetch Root
  */
-export const f = {
+export const f: {
+    builder: typeof builder
+    router: typeof router
+    Middleware: typeof Middleware
+} = {
     builder,
     router,
     Middleware,
