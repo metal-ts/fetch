@@ -132,7 +132,7 @@ class BookServer {
         header: Headers,
         data: (authId: UUID) => T,
         skipAuth: boolean = false
-    ): HttpResponse {
+    ): HttpResponse<any> {
         if (skipAuth) {
             return HttpResponse.json(
                 {

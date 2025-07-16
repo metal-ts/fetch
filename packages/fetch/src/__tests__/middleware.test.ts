@@ -1,41 +1,36 @@
 import { describe, expect, it } from 'vitest'
-import { Middleware } from '../utils/middleware'
+import { f } from '..'
 import { label } from './utils/test.label'
 
 describe(label.unit('middleware'), () => {
-    it(label.case('should add middleware'), () => {
-        const middleware = new Middleware<{ counter: number }, { b: string }>()
+    it(label.case('should execute middleware in order'), async () => {
+        const middleware = new f.Middleware()
+        const executionOrder: number[] = []
 
-        let counter = 0
-        middleware.use([
-            ({ next }) => {
-                counter++
+        middleware.use(async (req, next) => {
+            executionOrder.push(1)
+            const response = await next(req)
+            executionOrder.push(6)
+            return response
+        })
 
-                next({
-                    req: { counter },
-                })
-            },
-            ({ next }) => {
-                counter++
+        middleware.use(async (req, next) => {
+            executionOrder.push(2)
+            const response = await next(req)
+            executionOrder.push(5)
+            return response
+        })
 
-                next({
-                    req: { counter },
-                    res: {
-                        b: 'love',
-                    },
-                })
-            },
-            ({ next }) => {
-                counter++
+        middleware.use(async (req, next) => {
+            executionOrder.push(3)
+            const response = await next(req)
+            executionOrder.push(4)
+            return response
+        })
 
-                next({
-                    req: { counter },
-                })
-            },
-        ])
+        const mockFetcher = async (req: Request) => new Response('ok')
+        await middleware.execute(new Request('https://test.com'), mockFetcher)
 
-        middleware.execute({ counter }, { b: '2' })
-
-        expect(counter).toBe(3)
+        expect(executionOrder).toEqual([1, 2, 3, 4, 5, 6])
     })
 })

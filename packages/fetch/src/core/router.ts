@@ -88,10 +88,11 @@ class Router<
 
             if (Router.isFetchMethod(key) && Router.isFetchBuilder(value)) {
                 // 1. URL / Method
-                value.def_url(Router.getUrlPath(baseUrl))
-                value.def_method(key)
+                const newBuilder = value
+                    .def_url(Router.getUrlPath(baseUrl))
+                    .def_method(key)
                 // 2. Build
-                result[key] = value.build()
+                result[key] = newBuilder.build()
             } else if (Router.isRecord(value)) {
                 result[key] = this.buildRouterStructure(
                     value,
@@ -160,17 +161,17 @@ class Router<
  * export const api = f.router(BASE_URL, {
  *      auth: {
  *          login: {
- *              GET: f.unit()
+ *              GET: f.builder()
  *          },
  *      },
  *      books: {
- *          GET: f.unit()
- *          POST: f.unit()
+ *          GET: f.builder()
+ *          POST: f.builder()
  *          // Dynamic path parameter via $ symbol
  *          $id: {
- *              GET: f.unit()
- *              PUT: f.unit()
- *              DELETE: f.unit()
+ *              GET: f.builder()
+ *              PUT: f.builder()
+ *              DELETE: f.builder()
  *          },
  *     },
  * })

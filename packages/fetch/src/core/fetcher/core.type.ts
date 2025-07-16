@@ -1,7 +1,7 @@
 import type {
     ConcreteBoolean,
     IncludeString,
-    OptionalAndNeverAtUnknown,
+    OmitNever,
 } from '../../utils/types'
 
 type BaseFetchOption = Required<RequestInit>
@@ -169,9 +169,12 @@ type DefaultFetchModeOptions = {
     isSafeMode: false
 }
 
-type FetchUnitOption = Omit<FetchOption, 'body' | 'method' | 'headers'>
+type FetchUnitOption = Omit<
+    FetchOption,
+    'body' | 'method' | 'headers' | 'signal'
+>
 type FetchQueryOptions<FetchPathParams, FetchSearchParams, FetchBody> =
-    OptionalAndNeverAtUnknown<{
+    OmitNever<{
         /**
          * @description Path params
          */
@@ -193,6 +196,15 @@ type FetchQueryOptions<FetchPathParams, FetchSearchParams, FetchBody> =
          * @description Fetch option
          */
         options?: Partial<FetchUnitOption>
+        /**
+         * @description Timeout for request
+         * @example 1000 = `1000ms`
+         */
+        timeout?: number
+        /**
+         * @description `AbortSignal` for request
+         */
+        signal?: AbortSignal | AbortSignal[]
     }
 
 interface FetchQueryOptionsPartial<
@@ -205,6 +217,8 @@ interface FetchQueryOptionsPartial<
     body?: FetchBody
     options?: Partial<FetchUnitOption>
     headers?: FetchHeader
+    timeout?: number
+    signal?: AbortSignal | AbortSignal[]
 }
 
 type FetchUnitRequestHandler<FetchPathParams, FetchSearchParams, FetchBody> =

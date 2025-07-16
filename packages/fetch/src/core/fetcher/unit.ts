@@ -1,11 +1,5 @@
 import type { ConcreteBoolean, JSON, OmitUnknown } from '../../utils/types'
-import {
-    FetchBodyError,
-    type FetchErrorCode,
-    FetchPathParamsError,
-    FetchResponseError,
-    FetchSearchParamsError,
-} from '../error'
+import { type FetchErrorCode, FetchResponseError } from '../error'
 import type { FetchBuilder } from './builder'
 import type {
     DefaultFetchModeOptions,
@@ -17,7 +11,6 @@ import type {
     FetchQueryOptionsPartial,
     FetchSearchParamsShape,
     FetchUnitOption,
-    Param,
 } from './core.type'
 import type { FetchOptionStore } from './fetch.option'
 
@@ -44,7 +37,25 @@ export class FetchUnit<
             $ModeOptions,
             $BaseUrl
         >
-    ) {}
+    ) {
+        this.copy = this.copy.bind(this)
+
+        this.set_options = this.set_options.bind(this)
+        this.set_cache = this.set_cache.bind(this)
+        this.set_credentials = this.set_credentials.bind(this)
+        this.set_redirect = this.set_redirect.bind(this)
+        this.set_referrer = this.set_referrer.bind(this)
+        this.set_referrer_policy = this.set_referrer_policy.bind(this)
+        this.set_integrity = this.set_integrity.bind(this)
+        this.set_keepalive = this.set_keepalive.bind(this)
+        this.set_window = this.set_window.bind(this)
+        this.set_mode = this.set_mode.bind(this)
+        this.set_priority = this.set_priority.bind(this)
+
+        this.getRequestURI = this.getRequestURI.bind(this)
+        this.createRequest = this.createRequest.bind(this)
+        this.query = this.query.bind(this)
+    }
 
     public copy(): FetchUnit<
         $Method,
@@ -56,7 +67,7 @@ export class FetchUnit<
         $BaseUrl
     > {
         const newStore = this.$store.copy()
-        return new FetchUnit(newStore, this.$builder.copy(newStore))
+        return new FetchUnit(newStore, this.$builder)
     }
 
     public set_options(
@@ -82,7 +93,6 @@ export class FetchUnit<
         options.referrer && copyUnit.set_referrer(options.referrer)
         options.referrerPolicy &&
             copyUnit.set_referrer_policy(options.referrerPolicy)
-        options.signal && copyUnit.set_signal(options.signal)
         options.window && copyUnit.set_window(options.window)
 
         return copyUnit
@@ -193,21 +203,6 @@ export class FetchUnit<
         copyUnit.$store.keepalive = keepalive
         return copyUnit
     }
-    public set_signal(
-        signal: FetchOption['signal']
-    ): FetchUnit<
-        $Method,
-        $PathParams,
-        $SearchParams,
-        $Body,
-        $Response,
-        $ModeOptions,
-        $BaseUrl
-    > {
-        const copyUnit = this.copy()
-        copyUnit.$store.signal = signal
-        return copyUnit
-    }
     public set_window(
         window: FetchOption['window']
     ): FetchUnit<
@@ -254,93 +249,13 @@ export class FetchUnit<
         return copyUnit
     }
 
-    private buildPathParams(baseUrl: string, pathParams?: $PathParams): string {
-        if (!pathParams) return baseUrl
-
-        try {
-            const baseUrlObject: URL = new URL(baseUrl)
-            const dynamicParamsProcessedPath: string = baseUrlObject.pathname
-                .split('/')
-                .filter(Boolean)
-                .reduce<Array<string>>((paramList, params) => {
-                    const isDynamicParam: boolean = params.startsWith('$')
-
-                    if (params.includes('$') && !isDynamicParam)
-                        throw new SyntaxError(
-                            `Invalid path params, ${params}\nDynamic Params should be started with $, ex) $id, $name\nCheck your base url: ${baseUrl}`
-                        )
-
-                    if (isDynamicParam) {
-                        const paramKey: string = params.slice(1)
-                        const dynamicParam: Param | undefined = (
-                            pathParams as Record<string, Param>
-                        )?.[paramKey]
-
-                        if (
-                            !dynamicParam ||
-                            (typeof dynamicParam !== 'number' &&
-                                typeof dynamicParam !== 'string')
-                        )
-                            return paramList
-
-                        paramList.push(String(dynamicParam))
-                        return paramList
-                    }
-
-                    paramList.push(params)
-                    return paramList
-                }, [])
-                .join('/')
-
-            baseUrlObject.pathname = dynamicParamsProcessedPath
-            return baseUrlObject.toString()
-        } catch (e) {
-            throw new FetchPathParamsError(baseUrl.toString(), pathParams, e)
-        }
-    }
-
-    private buildSearchParams(
-        baseUrl: string,
-        searchParams?: $SearchParams
-    ): string {
-        if (!searchParams) return baseUrl
-
-        try {
-            const validatedSearchParams: Record<string, Param | Array<Param>> =
-                this.$builder.searchParamsValidator(searchParams) as Record<
-                    string,
-                    Param | Array<Param>
-                >
-
-            const baseUrlObject: URL = new URL(baseUrl)
-
-            Object.entries(validatedSearchParams).forEach(([key, value]) => {
-                if (Array.isArray(value)) {
-                    value.forEach((v) => {
-                        baseUrlObject.searchParams.append(key, v.toString())
-                    })
-                } else {
-                    baseUrlObject.searchParams.append(key, value.toString())
-                }
-            })
-
-            return baseUrlObject.toString()
-        } catch (e) {
-            throw new FetchSearchParamsError(
-                baseUrl.toString(),
-                searchParams,
-                e
-            )
-        }
-    }
-
     private getRequestURI(
         pathParams?: $PathParams,
         searchParams?: $SearchParams
     ): string {
         const baseUrl = this.$store.url
-        const requestURI = this.buildSearchParams(
-            this.buildPathParams(
+        const requestURI = this.$builder.buildSearchParams(
+            this.$builder.buildPathParams(
                 baseUrl instanceof Request ? baseUrl.url : baseUrl.toString(),
                 pathParams
             ),
@@ -362,9 +277,6 @@ export class FetchUnit<
 
         try {
             const serializedJson: string = JSON.stringify(targetBody)
-            const isJson: boolean = serializedJson !== '{}'
-            if (!isJson) throw new FetchBodyError(targetBody)
-
             return serializedJson
         } catch (e) {
             throw new SyntaxError(
@@ -383,24 +295,48 @@ export class FetchUnit<
             $Body
         >
     ): Request {
-        const validatedBody: BodyInit | null = queryOptions?.body
+        // Generate body
+        const body: BodyInit | null = queryOptions?.body
             ? this.getValidBody(this.$builder.bodyValidator(queryOptions?.body))
             : this.$store.body
 
-        const requestHeaders: HeadersInit = queryOptions?.headers
-            ? {
-                  ...this.$store.headers,
-                  ...(queryOptions.headers as Record<string, string>),
-              }
-            : this.$store.headers
+        // Generate headers
+        const headers: Headers = new Headers(
+            queryOptions?.headers
+                ? {
+                      ...this.$store.headers,
+                      ...(queryOptions.headers as Record<string, string>),
+                  }
+                : this.$store.headers
+        )
 
+        // Validate headers
+        if (this.$builder.isJsonMode && !headers.has('Content-Type')) {
+            headers.set('Content-Type', 'application/json')
+        }
+
+        // Attaching signals
+        const signals: AbortSignal[] = []
+        if (queryOptions?.timeout) {
+            signals.push(AbortSignal.timeout(queryOptions.timeout))
+        }
+        if (queryOptions?.signal) {
+            if (Array.isArray(queryOptions.signal)) {
+                signals.push(...queryOptions.signal)
+            } else {
+                signals.push(queryOptions.signal)
+            }
+        }
+
+        // Create request
         const request: Request = new Request(
             this.getRequestURI(queryOptions?.path, queryOptions?.search),
             {
                 ...this.$store.options,
                 ...queryOptions?.options,
-                headers: requestHeaders,
-                body: validatedBody,
+                headers,
+                body: body,
+                signal: signals.length > 0 ? AbortSignal.any(signals) : null,
             }
         )
 
@@ -427,20 +363,22 @@ export class FetchUnit<
     > {
         const request: Request = this.createRequest(queryOptions)
 
+        const fetcher = (req: Request) => fetch(req)
+
         let response: Response
         try {
-            response = await fetch(request)
+            response = await this.$builder.middleware.execute(request, fetcher)
             if (!response.ok) throw new FetchResponseError(response)
 
-            const processedResponse: $Response = this.$builder.responseHandler(
-                // @ts-ignore
-                this.$builder.isJsonMode
-                    ? {
-                          response,
-                          json: (await response.json()) as JSON,
-                      }
-                    : { response }
-            )
+            const processedResponse: $Response =
+                await this.$builder.responseHandler(
+                    (this.$builder.isJsonMode
+                        ? {
+                              response,
+                              json: () => response.json() as Promise<JSON>,
+                          }
+                        : { response }) as any
+                )
 
             return processedResponse
         } catch (error) {
