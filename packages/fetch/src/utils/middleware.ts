@@ -1,56 +1,40 @@
-import { Procedure } from './procedure'
+export type NextFunction = (request: Request) => Promise<Response>
+export type MiddlewareFunction = (
+    request: Request,
+    next: NextFunction
+) => Promise<Response>
 
-interface MiddlewareHandler<Req, Res> {
-    req: Req
-    res: Res
-    next: (middlewareNext?: { req?: Req; res?: Res }) => void
-}
+export class Middleware {
+    public readonly procedures: Array<MiddlewareFunction> = []
 
-interface MiddlewareProcedure<Req, Res> {
-    req: Req
-    res: Res
-    next?: MiddlewareNext<Req, Res>
-}
+    public copy(): Middleware {
+        const newMiddleware = new Middleware()
+        newMiddleware.use(this.procedures)
+        return newMiddleware
+    }
 
-type MiddlewareNext<Req, Res> = (
-    nextArgument: MiddlewareProcedure<Req, Res>
-) => void
-
-export class Middleware<Request, Response> {
-    private procedure: MiddlewareNext<Request, Response> | undefined
-
+    /**
+     * Use middleware
+     * @param middleware Target registration middleware
+     */
     public use(
-        middleware: Array<Procedure<MiddlewareHandler<Request, Response>>>
+        middleware: MiddlewareFunction | Array<MiddlewareFunction>
     ): void {
-        this.procedure = ({
-            req: baseReq,
-            res: baseRes,
-        }: MiddlewareProcedure<Request, Response>) => {
-            let procedurePointer = 0
-
-            const next: MiddlewareHandler<Request, Response>['next'] = (
-                nextArgs
-            ) => {
-                procedurePointer++
-                middleware[procedurePointer]?.({
-                    req: nextArgs?.req ?? baseReq,
-                    res: nextArgs?.res ?? baseRes,
-                    next,
-                })
-            }
-
-            middleware[0]?.({
-                req: baseReq,
-                res: baseRes,
-                next,
-            })
+        if (Array.isArray(middleware)) {
+            this.procedures.push(...middleware)
+        } else {
+            this.procedures.push(middleware)
         }
     }
 
-    public execute(req: Request, res: Response): void {
-        this.procedure?.({
-            req,
-            res,
-        })
+    public execute(
+        initialRequest: Request,
+        fetcher: (request: Request) => Promise<Response>
+    ): Promise<Response> {
+        const chain = this.procedures.reduceRight<NextFunction>(
+            (next, middleware) => (request) => middleware(request, next),
+            fetcher
+        )
+        return chain(initialRequest)
     }
 }

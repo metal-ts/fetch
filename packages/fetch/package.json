@@ -18,8 +18,5 @@
     "scripts": {
         "build": "tsup src/index.ts --format=cjs,esm --dts",
         "build:fast": "tsup src/index.ts --format=cjs,esm"
-    },
-    "devDependencies": {
-        "@metal-box/type": "^0.2.0"
     }
 }

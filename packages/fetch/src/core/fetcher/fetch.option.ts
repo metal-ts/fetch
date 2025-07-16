@@ -1,156 +1,14 @@
-import { IncludeString } from '../../utils/types'
-
-export type FetchUrl = Parameters<typeof fetch>[0]
-export type FetchOption = Required<RequestInit>
-export type FetchMethod =
-    | 'GET'
-    | 'POST'
-    | 'PUT'
-    | 'DELETE'
-    | 'PATCH'
-    | 'CONNECT'
-    | 'HEAD'
-    | 'OPTIONS'
-    | 'TRACE'
-export type FetchHeader = FetchOption['headers'] & {
-    [key in FetchHeaderKeyString]?: string
-}
-export type FetchMethodString = FetchMethod | IncludeString
-
-type FetchHeaderKey =
-    | 'Accept'
-    | 'Accept-CH'
-    | 'Accept-CH-Lifetime'
-    | 'Accept-Charset'
-    | 'Accept-Encoding'
-    | 'Accept-Language'
-    | 'Accept-Patch'
-    | 'Accept-Post'
-    | 'Accept-Ranges'
-    | 'Access-Control-Allow-Credentials'
-    | 'Access-Control-Allow-Headers'
-    | 'Access-Control-Allow-Methods'
-    | 'Access-Control-Allow-Origin'
-    | 'Access-Control-Expose-Headers'
-    | 'Access-Control-Max-Age'
-    | 'Access-Control-Request-Headers'
-    | 'Access-Control-Request-Method'
-    | 'Age'
-    | 'Allow'
-    | 'Alt-Svc'
-    | 'Alt-Used'
-    | 'Authorization'
-    | 'Cache-Control'
-    | 'Clear-Site-Data'
-    | 'Connection'
-    | 'Content-DPR'
-    | 'Content-Disposition'
-    | 'Content-Encoding'
-    | 'Content-Language'
-    | 'Content-Length'
-    | 'Content-Location'
-    | 'Content-Range'
-    | 'Content-Security-Policy'
-    | 'Content-Security-Policy-Report-Only'
-    | 'Content-Type'
-    | 'Cookie'
-    | 'Critical-CH'
-    | 'Cross-Origin-Embedder-Policy'
-    | 'Cross-Origin-Opener-Policy'
-    | 'Cross-Origin-Resource-Policy'
-    | 'DNT'
-    | 'DPR'
-    | 'Date'
-    | 'Device-Memory'
-    | 'Digest'
-    | 'Downlink'
-    | 'ECT'
-    | 'ETag'
-    | 'Early-Data'
-    | 'Expect'
-    | 'Expect-CT'
-    | 'Expires'
-    | 'Forwarded'
-    | 'From'
-    | 'Host'
-    | 'If-Match'
-    | 'If-Modified-Since'
-    | 'If-None-Match'
-    | 'If-Range'
-    | 'If-Unmodified-Since'
-    | 'Keep-Alive'
-    | 'Large-Allocation'
-    | 'Last-Modified'
-    | 'Link'
-    | 'Location'
-    | 'Max-Forwards'
-    | 'NEL'
-    | 'Origin'
-    | 'Origin-Agent-Cluster'
-    | 'Permissions-Policy'
-    | 'Pragma'
-    | 'Proxy-Authenticate'
-    | 'Proxy-Authorization'
-    | 'RTT'
-    | 'Range'
-    | 'Referer'
-    | 'Referrer-Policy'
-    | 'Retry-After'
-    | 'Save-Data'
-    | 'Sec-CH-Prefers-Color-Scheme'
-    | 'Sec-CH-Prefers-Reduced-Motion'
-    | 'Sec-CH-Prefers-Reduced-Transparency'
-    | 'Sec-CH-UA'
-    | 'Sec-CH-UA-Arch'
-    | 'Sec-CH-UA-Bitness'
-    | 'Sec-CH-UA-Full-Version'
-    | 'Sec-CH-UA-Full-Version-List'
-    | 'Sec-CH-UA-Mobile'
-    | 'Sec-CH-UA-Model'
-    | 'Sec-CH-UA-Platform'
-    | 'Sec-CH-UA-Platform-Version'
-    | 'Sec-Fetch-Dest'
-    | 'Sec-Fetch-Mode'
-    | 'Sec-Fetch-Site'
-    | 'Sec-Fetch-User'
-    | 'Sec-GPC'
-    | 'Sec-Purpose'
-    | 'Sec-WebSocket-Accept'
-    | 'Server'
-    | 'Server-Timing'
-    | 'Service-Worker-Navigation-Preload'
-    | 'Set-Cookie'
-    | 'Set-Login'
-    | 'SourceMap'
-    | 'Strict-Transport-Security'
-    | 'Supports-Loading-Mode'
-    | 'TE'
-    | 'Timing-Allow-Origin'
-    | 'Tk'
-    | 'Trailer'
-    | 'Transfer-Encoding'
-    | 'Upgrade'
-    | 'Upgrade-Insecure-Requests'
-    | 'User-Agent'
-    | 'Vary'
-    | 'Via'
-    | 'Viewport-Width'
-    | 'WWW-Authenticate'
-    | 'Want-Digest'
-    | 'Warning'
-    | 'Width'
-    | 'X-Content-Type-Options'
-    | 'X-DNS-Prefetch-Control'
-    | 'X-Forwarded-For'
-    | 'X-Forwarded-Host'
-    | 'X-Forwarded-Proto'
-    | 'X-Frame-Options'
-    | 'X-XSS-Protection'
-type FetchHeaderKeyString = FetchHeaderKey | IncludeString
+import type {
+    FetchHeader,
+    FetchMethod,
+    FetchOption,
+    FetchUrl,
+} from './core.type'
 
 export class FetchOptionStore {
     public get options(): FetchOption {
         return {
+            signal: null,
             cache: this.cache,
             body: this.body,
             headers: this.headers,
@@ -161,7 +19,6 @@ export class FetchOptionStore {
             referrerPolicy: this.referrerPolicy,
             integrity: this.integrity,
             keepalive: this.keepalive,
-            signal: this.signal,
             window: this.window,
             priority: this.priority,
             method: this.method,
@@ -169,23 +26,9 @@ export class FetchOptionStore {
     }
 
     public copy(): FetchOptionStore {
-        const copy = new FetchOptionStore()
-        copy.url = this.url
-        copy.method = this.method
-        copy.cache = this.cache
-        copy.body = this.body
-        copy.headers = this.headers
-        copy.mode = this.mode
-        copy.credentials = this.credentials
-        copy.redirect = this.redirect
-        copy.referrer = this.referrer
-        copy.referrerPolicy = this.referrerPolicy
-        copy.integrity = this.integrity
-        copy.keepalive = this.keepalive
-        copy.signal = this.signal
-        copy.window = this.window
-        copy.priority = this.priority
-        return copy
+        const newStore = new FetchOptionStore()
+        Object.assign(newStore, this)
+        return newStore
     }
 
     /*
@@ -296,7 +139,7 @@ export class FetchOptionStore {
      * Referrer
      */
     private _referrer: FetchOption['referrer'] | null = null
-    public defaultReferrer: FetchOption['referrer'] = 'client'
+    public defaultReferrer: FetchOption['referrer'] = 'about:client'
     public get referrer(): FetchOption['referrer'] {
         return this._referrer ?? this.defaultReferrer
     }
@@ -339,18 +182,6 @@ export class FetchOptionStore {
     }
     public set keepalive(value: FetchOption['keepalive']) {
         this._keepalive = value
-    }
-
-    /*
-     * Signal
-     */
-    private _signal: FetchOption['signal'] | null = null
-    public defaultSignal: FetchOption['signal'] = null
-    public get signal(): FetchOption['signal'] {
-        return this._signal ?? this.defaultSignal
-    }
-    public set signal(value: FetchOption['signal']) {
-        this._signal = value
     }
 
     /*

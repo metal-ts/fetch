@@ -39,7 +39,7 @@ export class FetchSearchParamsError extends FetchError {
         cause?: unknown
     ) {
         super(
-            'SearchParams',
+            'Search Params',
             `${FetchError.formatJson(searchParams)} at ${basePath}`,
             undefined,
             cause
@@ -54,20 +54,11 @@ export class FetchPathParamsError extends FetchError {
         cause?: unknown
     ) {
         super(
-            'PathParams',
+            'Path Params',
             `${FetchError.formatJson(pathParams)} at ${basePath}`,
             undefined,
             cause
         )
-    }
-}
-
-export class FetchBodyError extends FetchError {
-    public constructor(
-        public readonly body: unknown,
-        cause?: unknown
-    ) {
-        super('Body', FetchError.formatJson(body), undefined, cause)
     }
 }
 
@@ -115,7 +106,7 @@ export type FetchErrorCode =
 
 export class FetchResponseError extends FetchError {
     private static statusMessage(response: Response): string {
-        return `Error_code - ${response.status}\n› ${response.statusText}`
+        return `Error Code - ${response.status}\n› ${response.statusText}`
     }
 
     public status: FetchErrorCode

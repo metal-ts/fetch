@@ -1,5 +1,5 @@
 import { setupServer } from 'msw/node'
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { api } from './__mocks__/client'
 import {
     type BookModel,
@@ -14,7 +14,6 @@ const apiServer = setupServer(...bookServer.routes)
 
 beforeAll(() => apiServer.listen({ onUnhandledRequest: 'error' }))
 afterAll(() => apiServer.close())
-afterEach(() => apiServer.resetHandlers())
 // ---------------------------------------------------- //
 
 describe(label.unit('router api request'), () => {

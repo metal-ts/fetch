@@ -10,6 +10,10 @@ export class ProcedureSet<I> {
     private procedureList: Array<ProcedureRegistration<I>> = []
     public constructor() {}
 
+    public get procedures(): ReadonlyArray<ProcedureRegistration<I>> {
+        return Array.from(this.registeredProcedure)
+    }
+
     public get executor(): Procedure<I> {
         return (arg: I): void => {
             const executionList = this.procedureList
@@ -20,6 +24,14 @@ export class ProcedureSet<I> {
                 }
             }
         }
+    }
+
+    public copy(): ProcedureSet<I> {
+        const newProcedureSet = new ProcedureSet<I>()
+        for (const p of this.procedures) {
+            newProcedureSet.use(p.$, p.once)
+        }
+        return newProcedureSet
     }
 
     public use(procedure: Procedure<I>, once: boolean = false): void {

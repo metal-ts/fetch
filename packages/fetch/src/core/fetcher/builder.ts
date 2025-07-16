@@ -1,6 +1,12 @@
+import { Middleware, MiddlewareFunction } from '../../utils/middleware'
 import { Procedure, ProcedureSet } from '../../utils/procedure'
 import type { ConcreteBoolean, JSON } from '../../utils/types'
-import { FetchErrorCode, FetchResponseError } from '../error'
+import {
+    FetchErrorCode,
+    FetchPathParamsError,
+    FetchResponseError,
+    FetchSearchParamsError,
+} from '../error'
 import {
     DefaultFetchModeOptions,
     FetchMethod,
@@ -11,6 +17,7 @@ import {
     FetchQueryOptions,
     FetchSearchParamsShape,
     FetchUnitRequestHandler,
+    Param,
 } from './core.type'
 import { FetchOptionStore } from './fetch.option'
 import { FetchUnit } from './unit'
@@ -24,9 +31,15 @@ export class FetchBuilder<
     $ModeOptions extends FetchModeOptionsShape = DefaultFetchModeOptions,
     const $BaseUrl extends string = '',
 > {
-    public copy(
-        newStore: FetchOptionStore
-    ): FetchBuilder<
+    private _clone<
+        $Method extends FetchMethodString,
+        $PathParams extends FetchPathParamsShape,
+        $SearchParams extends FetchSearchParamsShape,
+        $Body,
+        $Response,
+        $ModeOptions extends FetchModeOptionsShape,
+        $BaseUrl extends string,
+    >(): FetchBuilder<
         $Method,
         $PathParams,
         $SearchParams,
@@ -35,7 +48,7 @@ export class FetchBuilder<
         $ModeOptions,
         $BaseUrl
     > {
-        const copy = new FetchBuilder<
+        const newBuilder = new FetchBuilder<
             $Method,
             $PathParams,
             $SearchParams,
@@ -44,19 +57,30 @@ export class FetchBuilder<
             $ModeOptions,
             $BaseUrl
         >()
-        copy._store = newStore
-        copy.def_fetch_err_handler(this.fetchErrorProcedure.executor)
-        copy.def_unknown_err_handler(this.unknownErrorProcedure.executor)
-        copy.def_final_handler(this.finallyProcedure.executor)
-        copy.def_response(this.responseHandler)
-        copy.def_request_handler(this.requestHandler)
-        copy.def_searchparams(this.searchParamsValidator)
-        copy.def_query_mode(this.isSafeMode ? 'not_throw' : 'throw')
-        this.isJsonMode && copy.def_json()
 
-        return copy
+        newBuilder._store = this._store.copy()
+        ;(newBuilder.fetchErrorProcedure as any) =
+            this.fetchErrorProcedure.copy()
+        ;(newBuilder.unknownErrorProcedure as any) =
+            this.unknownErrorProcedure.copy()
+        ;(newBuilder.finallyProcedure as any) = this.finallyProcedure.copy()
+        ;(newBuilder.middleware as any) = this.middleware.copy()
+
+        newBuilder.bodyValidator = this.bodyValidator as any
+        newBuilder.responseHandler = this.responseHandler as any
+        newBuilder.requestHandler = this.requestHandler as any
+        newBuilder.searchParamsValidator = this.searchParamsValidator as any
+
+        newBuilder.isJsonMode = this.isJsonMode
+        newBuilder.isSafeMode = this.isSafeMode
+
+        return newBuilder
     }
 
+    /**
+     * Build fetch unit
+     * @returns Fetch Unit
+     */
     public build(): FetchUnit<
         $Method,
         $PathParams,
@@ -77,7 +101,7 @@ export class FetchBuilder<
         >(this.$store, this)
     }
 
-    public static Create<
+    public static new<
         FetchMethod extends FetchMethodString,
         FetchPathParams extends FetchPathParamsShape = unknown,
         FetchSearchParams extends FetchSearchParamsShape = unknown,
@@ -126,8 +150,17 @@ export class FetchBuilder<
         $ModeOptions,
         $BaseUrl
     > {
-        this._store.method = method
-        return this
+        const newBuilder = this._clone<
+            Method,
+            $PathParams,
+            $SearchParams,
+            $Body,
+            $Response,
+            $ModeOptions,
+            $BaseUrl
+        >()
+        newBuilder._store.method = method
+        return newBuilder
     }
     public def_url<const Url extends string>(
         url: Url
@@ -140,59 +173,154 @@ export class FetchBuilder<
         $ModeOptions,
         Url
     > {
-        this.$store.defaultUrl = url
-        return this
+        const newBuilder = this._clone<
+            $Method,
+            $PathParams,
+            $SearchParams,
+            $Body,
+            $Response,
+            $ModeOptions,
+            Url
+        >()
+        newBuilder.$store.defaultUrl = url
+        return newBuilder
     }
     public def_default_cache(cache: FetchOption['cache']) {
-        this.$store.defaultCache = cache
-        return this
+        const newBuilder = this._clone<
+            $Method,
+            $PathParams,
+            $SearchParams,
+            $Body,
+            $Response,
+            $ModeOptions,
+            $BaseUrl
+        >()
+        newBuilder.$store.defaultCache = cache
+        return newBuilder
     }
     public def_default_mode(mode: FetchOption['mode']) {
-        this.$store.defaultMode = mode
-        return this
+        const newBuilder = this._clone<
+            $Method,
+            $PathParams,
+            $SearchParams,
+            $Body,
+            $Response,
+            $ModeOptions,
+            $BaseUrl
+        >()
+        newBuilder.$store.defaultMode = mode
+        return newBuilder
     }
     public def_default_credentials(credentials: FetchOption['credentials']) {
-        this.$store.defaultCredentials = credentials
-        return this
+        const newBuilder = this._clone<
+            $Method,
+            $PathParams,
+            $SearchParams,
+            $Body,
+            $Response,
+            $ModeOptions,
+            $BaseUrl
+        >()
+        newBuilder.$store.defaultCredentials = credentials
+        return newBuilder
     }
     public def_default_redirect(redirect: FetchOption['redirect']) {
-        this.$store.defaultRedirect = redirect
-        return this
+        const newBuilder = this._clone<
+            $Method,
+            $PathParams,
+            $SearchParams,
+            $Body,
+            $Response,
+            $ModeOptions,
+            $BaseUrl
+        >()
+        newBuilder.$store.defaultRedirect = redirect
+        return newBuilder
     }
     public def_default_referrer(referrer: FetchOption['referrer']) {
-        this.$store.defaultReferrer = referrer
-        return this
+        const newBuilder = this._clone<
+            $Method,
+            $PathParams,
+            $SearchParams,
+            $Body,
+            $Response,
+            $ModeOptions,
+            $BaseUrl
+        >()
+        newBuilder.$store.defaultReferrer = referrer
+        return newBuilder
     }
     public def_default_referrer_policy(
         referrerPolicy: FetchOption['referrerPolicy']
     ) {
-        this.$store.defaultReferrerPolicy = referrerPolicy
-        return this
+        const newBuilder = this._clone<
+            $Method,
+            $PathParams,
+            $SearchParams,
+            $Body,
+            $Response,
+            $ModeOptions,
+            $BaseUrl
+        >()
+        newBuilder.$store.defaultReferrerPolicy = referrerPolicy
+        return newBuilder
     }
     public def_default_integrity(integrity: FetchOption['integrity']) {
-        this.$store.defaultIntegrity = integrity
-        return this
+        const newBuilder = this._clone<
+            $Method,
+            $PathParams,
+            $SearchParams,
+            $Body,
+            $Response,
+            $ModeOptions,
+            $BaseUrl
+        >()
+        newBuilder.$store.defaultIntegrity = integrity
+        return newBuilder
     }
     public def_default_keepalive(keepalive: FetchOption['keepalive']) {
-        this.$store.defaultKeepalive = keepalive
-        return this
-    }
-    public def_default_signal(signal: FetchOption['signal']) {
-        this.$store.defaultSignal = signal
-        return this
+        const newBuilder = this._clone<
+            $Method,
+            $PathParams,
+            $SearchParams,
+            $Body,
+            $Response,
+            $ModeOptions,
+            $BaseUrl
+        >()
+        newBuilder.$store.defaultKeepalive = keepalive
+        return newBuilder
     }
     public def_default_window(window: FetchOption['window']) {
-        this.$store.defaultWindow = window
-        return this
+        const newBuilder = this._clone<
+            $Method,
+            $PathParams,
+            $SearchParams,
+            $Body,
+            $Response,
+            $ModeOptions,
+            $BaseUrl
+        >()
+        newBuilder.$store.defaultWindow = window
+        return newBuilder
     }
     public def_default_priority(priority: FetchOption['priority']) {
-        this.$store.defaultPriority = priority
-        return this
+        const newBuilder = this._clone<
+            $Method,
+            $PathParams,
+            $SearchParams,
+            $Body,
+            $Response,
+            $ModeOptions,
+            $BaseUrl
+        >()
+        newBuilder.$store.defaultPriority = priority
+        return newBuilder
     }
 
-    public searchParamsValidator: (
+    public searchParamsValidator!: (
         searchParams: FetchSearchParamsShape
-    ) => $SearchParams = (s) => s as $SearchParams
+    ) => $SearchParams
     public def_searchparams<FetchSearchParamsInjection extends $SearchParams>(
         searchParamsValidator: (
             params: FetchSearchParamsShape
@@ -206,8 +334,7 @@ export class FetchBuilder<
         $ModeOptions,
         $BaseUrl
     > {
-        this.searchParamsValidator = searchParamsValidator
-        return this as unknown as FetchBuilder<
+        const newBuilder = this._clone<
             $Method,
             $PathParams,
             FetchSearchParamsInjection,
@@ -215,7 +342,9 @@ export class FetchBuilder<
             $Response,
             $ModeOptions,
             $BaseUrl
-        >
+        >()
+        newBuilder.searchParamsValidator = searchParamsValidator
+        return newBuilder
     }
 
     public readonly fetchErrorProcedure: ProcedureSet<{
@@ -237,8 +366,17 @@ export class FetchBuilder<
         $ModeOptions,
         $BaseUrl
     > {
-        this.fetchErrorProcedure.use(fetchErrorProcedure, once)
-        return this
+        const newBuilder = this._clone<
+            $Method,
+            $PathParams,
+            $SearchParams,
+            $Body,
+            $Response,
+            $ModeOptions,
+            $BaseUrl
+        >()
+        newBuilder.fetchErrorProcedure.use(fetchErrorProcedure, once)
+        return newBuilder
     }
 
     public readonly unknownErrorProcedure: ProcedureSet<{
@@ -258,8 +396,17 @@ export class FetchBuilder<
         $ModeOptions,
         $BaseUrl
     > {
-        this.unknownErrorProcedure.use(unknownErrorProcedure, once)
-        return this
+        const newBuilder = this._clone<
+            $Method,
+            $PathParams,
+            $SearchParams,
+            $Body,
+            $Response,
+            $ModeOptions,
+            $BaseUrl
+        >()
+        newBuilder.unknownErrorProcedure.use(unknownErrorProcedure, once)
+        return newBuilder
     }
 
     public readonly finallyProcedure: ProcedureSet<
@@ -279,11 +426,20 @@ export class FetchBuilder<
         $ModeOptions,
         $BaseUrl
     > {
-        this.finallyProcedure.use(finallyHandler, once)
-        return this
+        const newBuilder = this._clone<
+            $Method,
+            $PathParams,
+            $SearchParams,
+            $Body,
+            $Response,
+            $ModeOptions,
+            $BaseUrl
+        >()
+        newBuilder.finallyProcedure.use(finallyHandler, once)
+        return newBuilder
     }
 
-    public bodyValidator: (body: unknown) => $Body = (s) => s as $Body
+    public bodyValidator!: (body: unknown) => $Body
     /**
      * @description Validate body data using any schema validation library
      * @param bodyValidator validate body data, return parsed body data
@@ -293,13 +449,13 @@ export class FetchBuilder<
      * import { z } from "zod"
      *
      * const BodyZod = z.object({ name: z.string() })
-     * const fetchUnit = f.unit().def_body(BodyZod.parse)
+     * const fetchUnit = f.builder().def_body(BodyZod.parse)
      *
      * // Example using metal-box/type
      * import { t } from "@metal-box/type"
      *
      * const BodyMetal = t.object({ name: t.string })
-     * const fetchUnit2 = f.unit().def_body(BodyMetal.parse)
+     * const fetchUnit2 = f.builder().def_body(BodyMetal.parse)
      * ```
      */
     public def_body<FetchBodyInjection extends $Body>(
@@ -313,8 +469,7 @@ export class FetchBuilder<
         $ModeOptions,
         $BaseUrl
     > {
-        this.bodyValidator = bodyValidator
-        return this as unknown as FetchBuilder<
+        const newBuilder = this._clone<
             $Method,
             $PathParams,
             $SearchParams,
@@ -322,14 +477,16 @@ export class FetchBuilder<
             $Response,
             $ModeOptions,
             $BaseUrl
-        >
+        >()
+        newBuilder.bodyValidator = bodyValidator
+        return newBuilder
     }
 
     public responseHandler: (
         responseArgument: $ModeOptions['isJsonMode'] extends true
             ? {
                   response: Response
-                  json: JSON
+                  json: () => Promise<JSON>
               }
             : {
                   response: Response
@@ -339,12 +496,12 @@ export class FetchBuilder<
      * @description Define response data
      * @param responseHandler validate response data, return processed response data
      */
-    public def_response<FetchResponseInjection extends $Response>(
+    public def_response<const FetchResponseInjection>(
         responseHandler: (
             responseArgument: $ModeOptions['isJsonMode'] extends true
                 ? {
                       response: Response
-                      json: JSON
+                      json: () => Promise<JSON>
                   }
                 : {
                       response: Response
@@ -359,8 +516,7 @@ export class FetchBuilder<
         $ModeOptions,
         $BaseUrl
     > {
-        this.responseHandler = responseHandler
-        return this as unknown as FetchBuilder<
+        const newBuilder = this._clone<
             $Method,
             $PathParams,
             $SearchParams,
@@ -368,14 +524,16 @@ export class FetchBuilder<
             Awaited<FetchResponseInjection>,
             $ModeOptions,
             $BaseUrl
-        >
+        >()
+        newBuilder.responseHandler = responseHandler as any
+        return newBuilder
     }
 
     public requestHandler: FetchUnitRequestHandler<
         $PathParams,
         $SearchParams,
         $Body
-    > = (s) => s.request
+    > = (s) => s.request as any
     /**
      * @description Handle request data
      * @param requestHandler handle request data, return processed request data
@@ -395,8 +553,32 @@ export class FetchBuilder<
         $ModeOptions,
         $BaseUrl
     > {
-        this.requestHandler = requestHandler
-        return this
+        const newBuilder = this._clone<
+            $Method,
+            $PathParams,
+            $SearchParams,
+            $Body,
+            $Response,
+            $ModeOptions,
+            $BaseUrl
+        >()
+        newBuilder.requestHandler = requestHandler
+        return newBuilder
+    }
+
+    public middleware: Middleware = new Middleware()
+    public def_middleware(...middleware: Array<MiddlewareFunction>): this {
+        const newBuilder = this._clone<
+            $Method,
+            $PathParams,
+            $SearchParams,
+            $Body,
+            $Response,
+            $ModeOptions,
+            $BaseUrl
+        >()
+        newBuilder.middleware.use(middleware)
+        return newBuilder as this
     }
 
     public isJsonMode: ConcreteBoolean = false
@@ -412,22 +594,7 @@ export class FetchBuilder<
         },
         $BaseUrl
     > {
-        if (this.isJsonMode)
-            return this as unknown as FetchBuilder<
-                $Method,
-                $PathParams,
-                $SearchParams,
-                $Body,
-                $Response,
-                {
-                    isJsonMode: true
-                    isSafeMode: $ModeOptions['isSafeMode']
-                },
-                $BaseUrl
-            >
-
-        this.isJsonMode = true
-        return this as unknown as FetchBuilder<
+        const newBuilder = this._clone<
             $Method,
             $PathParams,
             $SearchParams,
@@ -438,7 +605,9 @@ export class FetchBuilder<
                 isSafeMode: $ModeOptions['isSafeMode']
             },
             $BaseUrl
-        >
+        >()
+        newBuilder.isJsonMode = true
+        return newBuilder
     }
 
     public isSafeMode: ConcreteBoolean = false
@@ -456,8 +625,100 @@ export class FetchBuilder<
         },
         $BaseUrl
     > {
-        this.isSafeMode = queryMode === 'not_throw'
-        return this
+        const newBuilder = this._clone<
+            $Method,
+            $PathParams,
+            $SearchParams,
+            $Body,
+            $Response,
+            {
+                isJsonMode: $ModeOptions['isJsonMode']
+                isSafeMode: QueryMode extends 'throw' ? false : true
+            },
+            $BaseUrl
+        >()
+        newBuilder.isSafeMode = queryMode === 'not_throw'
+        return newBuilder
+    }
+
+    public buildPathParams(baseUrl: string, pathParams?: $PathParams): string {
+        if (!pathParams) return baseUrl
+
+        try {
+            const baseUrlObject: URL = new URL(baseUrl)
+            const dynamicParamsProcessedPath: string = baseUrlObject.pathname
+                .split('/')
+                .filter(Boolean)
+                .reduce<Array<string>>((paramList, params) => {
+                    const isDynamicParam: boolean = params.startsWith('$')
+
+                    if (params.includes('$') && !isDynamicParam)
+                        throw new SyntaxError(
+                            `Invalid path params, ${params}\nDynamic Params should be started with $, ex) $id, $name\nCheck your base url: ${baseUrl}`
+                        )
+
+                    if (isDynamicParam) {
+                        const paramKey: string = params.slice(1)
+                        const dynamicParam: Param | undefined = (
+                            pathParams as Record<string, Param>
+                        )?.[paramKey]
+
+                        if (
+                            !dynamicParam ||
+                            (typeof dynamicParam !== 'number' &&
+                                typeof dynamicParam !== 'string')
+                        )
+                            return paramList
+
+                        paramList.push(String(dynamicParam))
+                        return paramList
+                    }
+
+                    paramList.push(params)
+                    return paramList
+                }, [])
+                .join('/')
+
+            baseUrlObject.pathname = dynamicParamsProcessedPath
+            return baseUrlObject.toString()
+        } catch (e) {
+            throw new FetchPathParamsError(baseUrl.toString(), pathParams, e)
+        }
+    }
+
+    public buildSearchParams(
+        baseUrl: string,
+        searchParams?: $SearchParams
+    ): string {
+        if (!searchParams) return baseUrl
+
+        try {
+            const validatedSearchParams: Record<string, Param | Array<Param>> =
+                this.searchParamsValidator(searchParams) as Record<
+                    string,
+                    Param | Array<Param>
+                >
+
+            const baseUrlObject: URL = new URL(baseUrl)
+
+            Object.entries(validatedSearchParams).forEach(([key, value]) => {
+                if (Array.isArray(value)) {
+                    value.forEach((v) => {
+                        baseUrlObject.searchParams.append(key, v.toString())
+                    })
+                } else {
+                    baseUrlObject.searchParams.append(key, value.toString())
+                }
+            })
+
+            return baseUrlObject.toString()
+        } catch (e) {
+            throw new FetchSearchParamsError(
+                baseUrl.toString(),
+                searchParams,
+                e
+            )
+        }
     }
 }
 
@@ -487,4 +748,4 @@ export type DefaultFetchBuilderShape = FetchBuilder<
     ''
 >
 
-export const unit = FetchBuilder.Create
+export const builder = FetchBuilder.new
